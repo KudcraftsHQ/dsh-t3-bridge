@@ -27,6 +27,8 @@ import { log } from "./log.ts";
 
 import { dshArgs, dshCommand, type BridgeConfig } from "./config.ts";
 import {
+  FALLBACK_EFFORT_OPTION,
+  findEffortConfigOption,
   findModelConfigOption,
   modelsFromConfigOption,
   readCachedModels,
@@ -127,12 +129,30 @@ export function runProxy(config: BridgeConfig): void {
   const initializeIds = new Set<string | number>();
   const sessionOpenIds = new Set<string | number>();
   let models: ReadonlyArray<CatalogModel> = readCachedModels();
+  /**
+   * T3 builds a model's option descriptors from the `configOptions` attached to
+   * each entry of `cursor/list_available_models`
+   * (`buildCursorCapabilitiesFromConfigOptions`). Without them the model has no
+   * capabilities, the effort dropdown never appears, and a thread's requested
+   * effort is dropped on the floor before it reaches the wire.
+   */
+  let effortOption: DshConfigOption = FALLBACK_EFFORT_OPTION;
 
   const learnCatalog = (result: unknown): void => {
     const configOptions = (result as { configOptions?: ReadonlyArray<DshConfigOption> })
       ?.configOptions;
     const option = findModelConfigOption(configOptions);
     if (!option) return;
+    const learnedEffort = findEffortConfigOption(configOptions);
+    if (learnedEffort?.options?.length) {
+      effortOption = {
+        ...learnedEffort,
+        currentValue: config.defaultEffort,
+        // T3's normalizer discards anything outside low/medium/high/xhigh/max,
+        // so "off" would render a dropdown entry that silently does nothing.
+        options: learnedEffort.options.filter((entry) => entry.value !== "off"),
+      };
+    }
     const learned = modelsFromConfigOption(option);
     if (learned.length === 0) return;
     models = learned;
@@ -186,7 +206,11 @@ export function runProxy(config: BridgeConfig): void {
 
     if (method === "cursor/list_available_models") {
       if (id !== undefined) {
-        toClient({ jsonrpc: "2.0", id, result: { models: models.map((m) => ({ ...m })) } });
+        toClient({
+          jsonrpc: "2.0",
+          id,
+          result: { models: models.map((m) => ({ ...m, configOptions: [effortOption] })) },
+        });
       }
       return;
     }

@@ -88,6 +88,26 @@ export function modelsFromConfigOption(option: DshConfigOption): ReadonlyArray<C
   return flat;
 }
 
+/** The effort option, as dsh publishes it. T3 matches it by name. */
+export const FALLBACK_EFFORT_OPTION: DshConfigOption = {
+  id: "reasoning_effort",
+  name: "Reasoning effort",
+  category: "thought_level",
+  type: "select",
+  currentValue: "max",
+  options: [
+    { value: "low", name: "Low" },
+    { value: "high", name: "High" },
+    { value: "max", name: "Max" },
+  ],
+};
+
+export function findEffortConfigOption(
+  options: ReadonlyArray<DshConfigOption> | undefined,
+): DshConfigOption | undefined {
+  return options?.find((option) => option.id?.trim().toLowerCase() === "reasoning_effort");
+}
+
 export function findModelConfigOption(
   options: ReadonlyArray<DshConfigOption> | undefined,
 ): DshConfigOption | undefined {
