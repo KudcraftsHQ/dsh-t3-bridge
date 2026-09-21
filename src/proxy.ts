@@ -46,6 +46,25 @@ interface JsonRpcMessage {
   error?: unknown;
 }
 
+const EFFORT_CONFIG_ID = "reasoning_effort";
+
+/** Report the effort the bridge is about to set, not the one it is replacing. */
+function withDefaultEffort(
+  result: Record<string, unknown>,
+  effort: string,
+): Record<string, unknown> {
+  const configOptions = result.configOptions as ReadonlyArray<DshConfigOption> | undefined;
+  if (!Array.isArray(configOptions) || !effort) return result;
+  return {
+    ...result,
+    configOptions: configOptions.map((option) =>
+      option.id === EFFORT_CONFIG_ID && option.options?.some((entry) => entry.value === effort)
+        ? { ...option, currentValue: effort }
+        : option,
+    ),
+  };
+}
+
 const CURSOR_AUTH_METHOD = {
   id: "cursor_login",
   name: "Log in",
@@ -106,6 +125,7 @@ export function runProxy(config: BridgeConfig): void {
   };
 
   const initializeIds = new Set<string | number>();
+  const sessionOpenIds = new Set<string | number>();
   let models: ReadonlyArray<CatalogModel> = readCachedModels();
 
   const learnCatalog = (result: unknown): void => {
@@ -119,12 +139,40 @@ export function runProxy(config: BridgeConfig): void {
     writeCachedModels(learned);
   };
 
+  /**
+   * Tell dsh about the standing effort as soon as a session exists. A client
+   * that picks its own effort (T3 does, from the thread's model selection)
+   * overwrites this a moment later; one that does not now gets `max` instead of
+   * dsh's provider default.
+   */
+  const applyDefaultEffort = (result: Record<string, unknown>): void => {
+    const sessionId = result.sessionId;
+    const effort = config.defaultEffort;
+    if (typeof sessionId !== "string" || !effort) return;
+    const option = (result.configOptions as ReadonlyArray<DshConfigOption> | undefined)?.find(
+      (entry) => entry.id === EFFORT_CONFIG_ID,
+    );
+    if (!option || option.currentValue === effort) return;
+    if (!option.options?.some((entry) => entry.value === effort)) return;
+    callAgent(
+      "session/set_config_option",
+      { sessionId, configId: EFFORT_CONFIG_ID, value: effort },
+      () => {},
+    );
+  };
+
   const fromClient = lineReader((message) => {
     log("<- t3 ", message);
     const { method, id, params } = message;
 
     if (method === "initialize") {
       if (id !== undefined) initializeIds.add(id);
+      toAgent(message);
+      return;
+    }
+
+    if (method === "session/new") {
+      if (id !== undefined) sessionOpenIds.add(id);
       toAgent(message);
       return;
     }
@@ -224,7 +272,14 @@ export function runProxy(config: BridgeConfig): void {
 
     if (message.result !== undefined) {
       learnCatalog(message.result);
-      toClient({ ...message, result: unwrapModelOptionValues(message.result) });
+      const result = unwrapModelOptionValues(message.result) as Record<string, unknown>;
+      if (id !== undefined && sessionOpenIds.has(id)) {
+        sessionOpenIds.delete(id);
+        toClient({ ...message, result: withDefaultEffort(result, config.defaultEffort) });
+        applyDefaultEffort(result);
+        return;
+      }
+      toClient({ ...message, result });
       return;
     }
     toClient(message);

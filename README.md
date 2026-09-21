@@ -126,6 +126,16 @@ are `off` / `low` / `high` / `max`. T3's normalizer keeps `low`, `high` and
 `max` and discards `off`, so the dropdown shows three of dsh's four levels and
 each one is dsh's own value, passed through unchanged.
 
+### The standing effort
+
+dsh's `acp` plugin row takes only `provider` and `model`, so there is nowhere in
+the composition to say "always think hard" — a new session lands on the provider
+default, `high`. The bridge therefore sets `reasoning_effort` on every session it
+opens (`max` unless `DSH_T3_DEFAULT_EFFORT` says otherwise) and reports that
+value in the `session/new` response, so the dropdown shows what is actually
+running. A client that picks its own effort — T3 does, from the thread's model
+selection — simply overwrites it a moment later.
+
 ### The image gate
 
 dsh decides image support **once, at `initialize`**, from the model named in the
@@ -158,6 +168,7 @@ spawns dsh through an explicitly resolved `node` against
 | `DSH_T3_PROFILE` | `acp` | The dsh profile to boot |
 | `DSH_T3_PATCH` | `<harness>/acp-patch.yml` if present | Patch overlay |
 | `DSH_T3_PROVIDER` | `deepseek-official` | The provider half of dsh's model value |
+| `DSH_T3_DEFAULT_EFFORT` | `max` | Effort set on every session the bridge opens, for clients that pick none |
 | `DSH_T3_KEY_FILE` | `~/.pi/agent/deepseek-api-key` | Where to read the key |
 | `DSH_T3_MODEL_CACHE` | `~/.dsh/t3-bridge-models.json` | Learned catalog |
 | `DSH_T3_LOG` | unset | Wire log — every frame in both directions |

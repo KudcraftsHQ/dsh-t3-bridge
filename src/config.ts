@@ -16,6 +16,7 @@ export interface BridgeConfig {
   readonly profile: string;
   readonly patches: ReadonlyArray<string>;
   readonly provider: string;
+  readonly defaultEffort: string;
   readonly apiKey: string | undefined;
 }
 
@@ -84,6 +85,10 @@ export function loadConfig(): BridgeConfig {
     profile: process.env.DSH_T3_PROFILE?.trim() || "acp",
     patches: patch ? [patch] : [],
     provider: process.env.DSH_T3_PROVIDER?.trim() || "deepseek-official",
+    // dsh's own default is the provider default ("high"), and its `acp` plugin
+    // row takes only provider and model — so the standing effort is set here,
+    // on every session the bridge opens, for clients that do not pick one.
+    defaultEffort: process.env.DSH_T3_DEFAULT_EFFORT?.trim() || "max",
     apiKey: resolveApiKey(),
   };
 }
