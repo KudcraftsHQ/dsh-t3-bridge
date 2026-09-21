@@ -1,0 +1,9 @@
+{
+  "name": "dsh-t3-bridge",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Run DeepSeek Harness (dsh) as a provider inside T3 Code, by wearing the Cursor driver's costume over dsh's own ACP profile.",
+  "bin": { "dsh-t3-bridge": "bin/dsh-t3-bridge" },
+  "scripts": { "test": "bun test" }
+}

@@ -1,0 +1,33 @@
+#!/bin/sh
+# Launcher for the dsh-t3-bridge ACP agent.
+#
+# T3 Code spawns the provider binary directly rather than through a login
+# shell, so PATH here is whatever the T3 server process inherited — often
+# without ~/.local/bin. bun is resolved explicitly instead of being assumed.
+
+self=$0
+while [ -L "$self" ]; do
+  link=$(readlink "$self")
+  case $link in
+    /*) self=$link ;;
+    *) self=$(dirname "$self")/$link ;;
+  esac
+done
+root=$(cd "$(dirname "$self")/.." && pwd)
+
+find_bun() {
+  if [ -n "$DSH_T3_BUN" ]; then printf '%s' "$DSH_T3_BUN"; return; fi
+  if command -v bun >/dev/null 2>&1; then command -v bun; return; fi
+  for candidate in \
+    "$HOME/.bun/bin/bun" \
+    "$HOME/.local/bin/bun" \
+    /opt/homebrew/bin/bun \
+    /usr/local/bin/bun
+  do
+    [ -x "$candidate" ] && { printf '%s' "$candidate"; return; }
+  done
+  echo "dsh-t3-bridge: could not find the bun runtime; set DSH_T3_BUN" >&2
+  exit 127
+}
+
+exec "$(find_bun)" "$root/src/main.ts" "$@"
