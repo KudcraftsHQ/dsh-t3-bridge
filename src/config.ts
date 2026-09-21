@@ -59,7 +59,6 @@ function resolveNode(): string {
     fromPath ??
     firstExisting(
       join(homedir(), ".local", "bin", "node"),
-      join(homedir(), ".hermes", "node", "bin", "node"),
       "/opt/homebrew/bin/node",
       "/usr/local/bin/node",
       "/usr/bin/node",
