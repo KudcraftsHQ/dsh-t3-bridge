@@ -15,6 +15,40 @@ probe, and translates the handful of gestures the two ends disagree about.
 
 **No fork of t3code is required.**
 
+## T3 Code Orchestrator V2 (nightly 2026-10-03 and later)
+
+Under Orchestrator V2 the `cursor` driver is the official Cursor SDK and no
+longer spawns `binaryPath`, so a `cursor_*` instance pointing at this bridge
+reports "Sign in with Cursor" and never starts it. Host the bridge on the
+generic **ACP Registry** driver instead, with an executable override:
+
+```json
+"acp_dsh": {
+  "driver": "acpRegistry",
+  "displayName": "DeepSeek Harness (ACP bridge)",
+  "enabled": true,
+  "config": {
+    "agentId": "deepagents",
+    "commandPath": "/home/you/.local/bin/dsh-t3-bridge",
+    "customModels": []
+  }
+}
+```
+
+- `agentId` must be a registry entry whose arguments are empty (`deepagents`
+  is); the bridge treats a bare invocation as an ACP session.
+- The driver only inspects agents against a cached registry index
+  (`~/.t3/caches/acp-registry/registry.json`). T3 writes it when the registry
+  browser in Settings is opened; until then the instance reports "No valid
+  cached ACP Registry index".
+- **The `t3-code` MCP server needs no bridge work.** V2 passes it in
+  `session/new` / `session/resume` as a stdio server (`t3 acp-mcp-bridge`,
+  absolute command, credentials in env); the proxy forwards it untouched and
+  dsh's own ACP layer mounts it (`mountAcpMcpServers`), so the agent sees
+  `mcp__t3-code__orchestrator_capabilities`, `delegate_task`, `t3_thread_*`
+  and the rest as native tools. T3's orchestration instructions arrive inside
+  the first prompt, since ACP has no system-prompt field.
+
 ## Install
 
 ```bash
