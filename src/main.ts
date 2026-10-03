@@ -1,8 +1,9 @@
 /**
- * Entry point. Two argv shapes, exactly as T3's Cursor driver produces them:
+ * Entry point. Argv shapes:
  *
- *   about [--format json]                     the health probe
- *   [-e <endpoint>] [--force|--auto-review] acp   the ACP session
+ *   about [--format json]                     the health probe (legacy Cursor host)
+ *   [-e <endpoint>] [--force|--auto-review] acp   the ACP session (legacy Cursor host)
+ *   (no arguments)                            the ACP session (T3 V2 generic ACP host)
  *
  * T3 prepends flags before `acp` depending on the thread's runtime mode, so
  * argv is scanned rather than matched positionally.
@@ -38,7 +39,11 @@ if (argv.includes("about")) {
   process.exit(0);
 }
 
-if (argv.includes("acp")) {
+// T3's generic ACP driver (Orchestrator V2's host for custom agents) spawns
+// the executable with the registry entry's arguments, which are empty for the
+// entries used to host this bridge, so a bare invocation is an ACP session.
+const bare = argv.filter((arg) => !arg.startsWith("-")).length === 0;
+if (argv.includes("acp") || bare) {
   runProxy(config);
 } else {
   process.stderr.write(
